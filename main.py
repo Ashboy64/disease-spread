@@ -1,23 +1,52 @@
 import pyglet
 
-cell_size = 20
-width, height = (640, 640)
+class Cell(object):
+    """Cell representing a human in the simulation"""
 
-window = pyglet.window.Window(width, height)
-image = pyglet.resource.image('assets/square.png')
+    def __init__(self, x, y, cell_size, ratio=0.85):
+        super(Cell, self).__init__()
+        self.state = 0
+        self.cell_size = cell_size
+        self.size = cell_size*ratio
+        self.pos = (x, y) # Lower left
 
-def draw_cell(x, y, size, ratio, color):
-    new_size = size*ratio
-    pyglet.graphics.draw(4, pyglet.gl.GL_QUADS, ('v2f',
-        [x + (size-new_size)/2, y + (size-new_size)/2, x + size - (size-new_size)/2, y + (size-new_size)/2, x + size - (size-new_size)/2, y + size - (size-new_size)/2,
-        x + (size-new_size)/2, y + size - (size-new_size)/2]), ('c3B', color))
+    def get_color(self):
+        if self.state == 0:
+            return [255,255,255 , 255,255,255 , 255,255,255 , 255,255,255]
+        else:
+            return [255,0,0 , 255,0,0 , 255,0,0 , 255,0,0]
 
-@window.event
-def on_draw():
-    window.clear()
+    def draw(self):
+        x, y = self.pos
+        offset = (self.cell_size - self.size)/2
+        pyglet.graphics.draw(4, pyglet.gl.GL_QUADS, ('v2f',
+            [x + offset, y + offset, x + self.cell_size - offset, y + offset, x + self.cell_size - offset, y + self.cell_size - offset,
+            x + offset, y + self.cell_size - offset]), ('c3B', self.get_color()))
 
-    for i in range(int(width/cell_size)):
-        for j in range(int(height/cell_size)):
-            draw_cell(cell_size*i, cell_size*j, cell_size, 0.85, [255 for i in range(12)])
+class SimulationWindow(pyglet.window.Window):
+    """The window displaying the simulation"""
 
-pyglet.app.run()
+    def __init__(self, cell_size=20, width=640, height=640):
+        super(SimulationWindow, self).__init__(width, height)
+        self.width = width
+        self.height = height
+
+        self.cell_size = 20
+        self.cell_list = []
+        self.init_cells()
+
+    def init_cells(self):
+        for row in range(int(self.height/self.cell_size)):
+            self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row, self.cell_size) for col in range(int(self.width/self.cell_size))])
+
+    def step(self):
+        pass
+
+    def on_draw(self):
+        for row in range(len(self.cell_list)):
+            for col in range(len(self.cell_list[row])):
+                self.cell_list[row][col].draw()
+
+if __name__ == '__main__':
+    window = SimulationWindow()
+    pyglet.app.run()
