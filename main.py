@@ -6,13 +6,11 @@ width, height = (640, 640)
 window = pyglet.window.Window(width, height)
 image = pyglet.resource.image('assets/square.png')
 
-def draw_cell(x, y, size, ratio):
-    pyglet.graphics.draw(4, pyglet.gl.GL_QUADS, ('v2f',
-        [x, y, x+size, y, x+size, y+size, x, y+size]), ('c3B', 0, 0, 0))
+def draw_cell(x, y, size, ratio, color):
     new_size = size*ratio
     pyglet.graphics.draw(4, pyglet.gl.GL_QUADS, ('v2f',
         [x + (size-new_size)/2, y + (size-new_size)/2, x + size - (size-new_size)/2, y + (size-new_size)/2, x + size - (size-new_size)/2, y + size - (size-new_size)/2,
-        x + (size-new_size)/2, y + size - (size-new_size)/2]))
+        x + (size-new_size)/2, y + size - (size-new_size)/2]), ('c3B', color))
 
 @window.event
 def on_draw():
@@ -20,9 +18,6 @@ def on_draw():
 
     for i in range(int(width/cell_size)):
         for j in range(int(height/cell_size)):
-            pyglet.graphics.draw(4, pyglet.gl.GL_QUADS, ('v2f',
-                [cell_size*i, cell_size*j, cell_size*(i+1), cell_size*j, cell_size*(i+1), cell_size*(j+1), cell_size*(i), cell_size*(j+1)]))
-
-    pyglet.graphics.draw(4, pyglet.gl.GL_QUADS, ('v2f', [0, 0, 10, 0, 10, 10, 0, 10]))
+            draw_cell(cell_size*i, cell_size*j, cell_size, 0.85, [255 for i in range(12)])
 
 pyglet.app.run()
