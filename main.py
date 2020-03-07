@@ -36,7 +36,7 @@ class SimulationWindow(pyglet.window.Window):
 
         self.init_props()
 
-        self.cell_size = 20
+        self.cell_size = cell_size
         self.cell_list = []
         self.init_cells()
 
@@ -54,11 +54,67 @@ class SimulationWindow(pyglet.window.Window):
             self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row, self.cell_size, self.expected_resistance*np.random.uniform())
                 for col in range(int(self.width/self.cell_size))])
 
-    def prob_infection(self, cell_1_pos, cell_2_pos):
-        x1, y1 = cell_1_pos
-        x2, y2 = cell_2_pos
+        self.cell_list[0][0].state = 3 # For testing purposes; the one person that is infected in the population at the start
 
-    def step(self):
+    def prob_infection(self, row, col):
+        a = 0.5 # Infection through diagonal
+        b = 0.5 # Infection through vertical/horizontal
+
+        diag_sum = 0
+        adj_sum = 0
+
+        above_exists = (row < len(self.cell_list) - 1) # Can address (r+1, .)
+        below_exists = (row > 0) # Can address (r-1, .)
+
+        right_exists = (col < len(self.cell_list[0]) - 1) # Can address (., c+1)
+        left_exists = (col > 0) # Can address (., c-1)
+
+        if above_exists:
+            # (r+1, col-1), (r+1, col), (r+1, col+1)
+            if self.cell_list[row+1][col].state == 3:
+                adj_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r+1, col)
+
+            if left_exists:
+                if self.cell_list[row+1][col-1].state == 3:
+                    diag_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r+1, col-1)
+            if right_exists:
+                if self.cell_list[row+1][col+1].state == 3:
+                    diag_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r+1, col+1)
+
+        if below_exists:
+            # (r-1, col-1), (r-1, col), (r-1, col+1)
+            if self.cell_list[row-1][col].state == 3:
+                adj_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r-1, col)
+
+            if left_exists:
+                if self.cell_list[row-1][col-1].state == 3:
+                    diag_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r-1, col-1)
+            if right_exists:
+                if self.cell_list[row-1][col+1].state == 3:
+                    diag_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r-1, col+1)
+
+        if right_exists:
+            if self.cell_list[row][col+1].state == 3:
+                adj_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r, col+1)
+        if left_exists:
+            if self.cell_list[row-1][col-1].state == 3:
+                adj_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r, col-1)
+
+        return (a/4)*diag_sum + (b/4)*adj_sum
+
+    def infection_step(self):
+        to_update = []
+        for row in range(len(self.cell_list)):
+            for col in range(len(self.cell_list[row])):
+                # print(self.prob_infection(row, col))
+                if (self.cell_list[row][col].state != 3) and (np.random.uniform() < self.prob_infection(row, col)):
+                    to_update.append([row, col])
+
+        print(len(to_update))
+        for cell in to_update:
+            self.cell_list[cell[0]][cell[1]].state = 3
+
+    def movement_step(self):
         pass
 
     def on_draw(self):
@@ -68,14 +124,12 @@ class SimulationWindow(pyglet.window.Window):
                 self.cell_list[row][col].draw()
 
     def update(self, dt):
-        for row in range(len(self.cell_list)):
-            for col in range(len(self.cell_list[row])):
-                self.cell_list[row][col].color = max(0, self.cell_list[row][col].color - 1)
+        self.infection_step()
 
-def callback(dt):
-    print(f"{dt} seconds since last callback")
+    def callback(self, dt):
+        print(f"{dt} seconds since last callback")
 
 if __name__ == '__main__':
-    window = SimulationWindow()
+    window = SimulationWindow(cell_size=20)
     pyglet.clock.schedule_interval(window.update, 1/30)
     pyglet.app.run()
