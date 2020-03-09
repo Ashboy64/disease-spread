@@ -26,6 +26,13 @@ class Cell(object):
             [x + offset, y + offset, x + self.cell_size - offset, y + offset, x + self.cell_size - offset, y + self.cell_size - offset,
             x + offset, y + self.cell_size - offset]), ('c3B', self.get_color()))
 
+    def add_to_batch(self, batch):
+        x, y = self.pos
+        offset = (self.cell_size - self.size)/2
+        batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
+            [x + offset, y + offset, x + self.cell_size - offset, y + offset, x + self.cell_size - offset, y + self.cell_size - offset,
+            x + offset, y + self.cell_size - offset]), ('c3B', self.get_color()))
+
 class SimulationWindow(pyglet.window.Window):
     """The window displaying the simulation"""
 
@@ -54,7 +61,7 @@ class SimulationWindow(pyglet.window.Window):
             self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row, self.cell_size, self.expected_resistance*np.random.uniform())
                 for col in range(int(self.width/self.cell_size))])
 
-        self.cell_list[0][0].state = 3 # For testing purposes; the one person that is infected in the population at the start
+        self.cell_list[np.random.randint(len(self.cell_list))][np.random.randint(len(self.cell_list[0]))].state = 3 # For testing purposes; the one person that is infected in the population at the start
 
     def prob_infection(self, row, col):
         a = 0.5 # Infection through diagonal
@@ -63,10 +70,10 @@ class SimulationWindow(pyglet.window.Window):
         diag_sum = 0
         adj_sum = 0
 
-        above_exists = (row < len(self.cell_list) - 1) # Can address (r+1, .)
+        above_exists = (row < (len(self.cell_list) - 1)) # Can address (r+1, .)
         below_exists = (row > 0) # Can address (r-1, .)
 
-        right_exists = (col < len(self.cell_list[0]) - 1) # Can address (., c+1)
+        right_exists = (col < (len(self.cell_list[0]) - 1)) # Can address (., c+1)
         left_exists = (col > 0) # Can address (., c-1)
 
         if above_exists:
@@ -97,7 +104,7 @@ class SimulationWindow(pyglet.window.Window):
             if self.cell_list[row][col+1].state == 3:
                 adj_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r, col+1)
         if left_exists:
-            if self.cell_list[row-1][col-1].state == 3:
+            if self.cell_list[row][col-1].state == 3:
                 adj_sum += np.sqrt(np.random.uniform()*(1-self.cell_list[row][col].resistance)) # (r, col-1)
 
         return (a/4)*diag_sum + (b/4)*adj_sum
@@ -112,6 +119,7 @@ class SimulationWindow(pyglet.window.Window):
 
         print(len(to_update))
         for cell in to_update:
+            # print(self.prob_infection(cell[0], cell[1]))
             self.cell_list[cell[0]][cell[1]].state = 3
 
     def movement_step(self):
@@ -119,9 +127,12 @@ class SimulationWindow(pyglet.window.Window):
 
     def on_draw(self):
         self.clear()
+        batch = pyglet.graphics.Batch()
         for row in range(len(self.cell_list)):
             for col in range(len(self.cell_list[row])):
-                self.cell_list[row][col].draw()
+                self.cell_list[row][col].add_to_batch(batch)
+
+        batch.draw()
 
     def update(self, dt):
         self.infection_step()
