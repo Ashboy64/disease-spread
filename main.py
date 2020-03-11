@@ -6,18 +6,26 @@ class Cell(object):
 
     def __init__(self, x, y, cell_size, resistance, ratio=0.85):
         super(Cell, self).__init__()
-        self.state = 1 # {1: susceptible, 2: Latent, 3: Infected, 4: Recovered, 5: Dead/inactive}
+        self.state = 1 # {1: susceptible, 2: Latent, 3: Infected, 4: Recovered, 0: Dead/inactive}
         self.cell_size = cell_size
         self.size = cell_size*ratio
         self.pos = (x, y) # Lower left
         self.resistance = resistance # The T_C(i,j) parameter
         self.color = 255
+        self.time_counter = 0
 
     def get_color(self):
         if self.state == 1:
             return [self.color for i in range(12)]
-        else:
+        elif self.state == 3:
             return [255,0,0 , 255,0,0 , 255,0,0 , 255,0,0]
+        elif self.state == 2:
+            return [240,240,0 , 240,240,0 , 240,240,0 , 240,240,0]
+        return [255 for i in range(12)]
+
+    def set_state(self, state):
+        self.state = state
+        self.time_counter = 0
 
     def draw(self):
         x, y = self.pos
@@ -42,10 +50,14 @@ class SimulationWindow(pyglet.window.Window):
         self.height = height
 
         self.init_props()
+        self.init_time_params()
 
         self.cell_size = cell_size
         self.cell_list = []
         self.init_cells()
+
+    def init_time_params(self):
+        self.max_latent = 5
 
     def init_props(self):
         self.mf_prop = [0.5, 0.5] # Proportion of males and females in the population
@@ -61,7 +73,7 @@ class SimulationWindow(pyglet.window.Window):
             self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row, self.cell_size, self.expected_resistance*np.random.uniform())
                 for col in range(int(self.width/self.cell_size))])
 
-        self.cell_list[np.random.randint(len(self.cell_list))][np.random.randint(len(self.cell_list[0]))].state = 3 # For testing purposes; the one person that is infected in the population at the start
+        self.cell_list[np.random.randint(len(self.cell_list))][np.random.randint(len(self.cell_list[0]))].set_state(3) # For testing purposes; the one person that is infected in the population at the start
 
     def prob_infection(self, row, col):
         a = 0.5 # Infection through diagonal
@@ -110,17 +122,22 @@ class SimulationWindow(pyglet.window.Window):
         return (a/4)*diag_sum + (b/4)*adj_sum
 
     def infection_step(self):
-        to_update = []
+        become_latent = []
         for row in range(len(self.cell_list)):
             for col in range(len(self.cell_list[row])):
                 # print(self.prob_infection(row, col))
-                if (self.cell_list[row][col].state != 3) and (np.random.uniform() < self.prob_infection(row, col)):
-                    to_update.append([row, col])
+                if (self.cell_list[row][col].state == 1) and (np.random.uniform() < self.prob_infection(row, col)):
+                    become_latent.append([row, col])
+                elif self.cell_list[row][col].state == 2:
+                    if self.cell_list[row][col].time_counter > self.max_latent:
+                        self.cell_list[row][col].set_state(3)
+                    else:
+                        self.cell_list[row][col].time_counter += 1
 
-        print(len(to_update))
-        for cell in to_update:
+        print(len(become_latent))
+        for cell in become_latent:
             # print(self.prob_infection(cell[0], cell[1]))
-            self.cell_list[cell[0]][cell[1]].state = 3
+            self.cell_list[cell[0]][cell[1]].set_state(2)
 
     def movement_step(self):
         pass
