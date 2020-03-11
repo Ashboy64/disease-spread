@@ -21,7 +21,7 @@ class Cell(object):
             return [255,0,0 , 255,0,0 , 255,0,0 , 255,0,0]
         elif self.state == 2:
             return [240,240,0 , 240,240,0 , 240,240,0 , 240,240,0]
-        return [255 for i in range(12)]
+        return [0 for i in range(12)]
 
     def set_state(self, state):
         self.state = state
@@ -57,7 +57,9 @@ class SimulationWindow(pyglet.window.Window):
         self.init_cells()
 
     def init_time_params(self):
-        self.max_latent = 5
+        self.max_latent = 10
+        self.max_infected = 20
+        self.prob_death = 0.01/20
 
     def init_props(self):
         self.mf_prop = [0.5, 0.5] # Proportion of males and females in the population
@@ -122,22 +124,25 @@ class SimulationWindow(pyglet.window.Window):
         return (a/4)*diag_sum + (b/4)*adj_sum
 
     def infection_step(self):
-        become_latent = []
         for row in range(len(self.cell_list)):
             for col in range(len(self.cell_list[row])):
                 # print(self.prob_infection(row, col))
                 if (self.cell_list[row][col].state == 1) and (np.random.uniform() < self.prob_infection(row, col)):
-                    become_latent.append([row, col])
+                    self.cell_list[row][col].set_state(2)
                 elif self.cell_list[row][col].state == 2:
                     if self.cell_list[row][col].time_counter > self.max_latent:
                         self.cell_list[row][col].set_state(3)
                     else:
                         self.cell_list[row][col].time_counter += 1
-
-        print(len(become_latent))
-        for cell in become_latent:
-            # print(self.prob_infection(cell[0], cell[1]))
-            self.cell_list[cell[0]][cell[1]].set_state(2)
+                elif self.cell_list[row][col].state == 3:
+                    if self.cell_list[row][col].time_counter > self.max_infected:
+                        self.cell_list[row][col].set_state(1)
+                    else:
+                        if np.random.uniform() < self.prob_death:
+                            self.cell_list[row][col].set_state(0)
+                            print(self.cell_list[row][col].state)
+                        else:
+                            self.cell_list[row][col].time_counter += 1
 
     def movement_step(self):
         pass
