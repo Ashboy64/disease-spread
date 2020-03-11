@@ -21,6 +21,8 @@ class Cell(object):
             return [255,0,0 , 255,0,0 , 255,0,0 , 255,0,0]
         elif self.state == 2:
             return [240,240,0 , 240,240,0 , 240,240,0 , 240,240,0]
+        elif self.state == 4:
+            return [0,255,0 , 0,255,0 , 0,255,0 , 0,255,0]
         return [0 for i in range(12)]
 
     def set_state(self, state):
@@ -60,6 +62,7 @@ class SimulationWindow(pyglet.window.Window):
         self.max_latent = 10
         self.max_infected = 20
         self.prob_death = 0.01/20
+        self.max_immune = 5
 
     def init_props(self):
         self.mf_prop = [0.5, 0.5] # Proportion of males and females in the population
@@ -136,13 +139,18 @@ class SimulationWindow(pyglet.window.Window):
                         self.cell_list[row][col].time_counter += 1
                 elif self.cell_list[row][col].state == 3:
                     if self.cell_list[row][col].time_counter > self.max_infected:
-                        self.cell_list[row][col].set_state(1)
+                        self.cell_list[row][col].set_state(4)
                     else:
                         if np.random.uniform() < self.prob_death:
                             self.cell_list[row][col].set_state(0)
                             print(self.cell_list[row][col].state)
                         else:
                             self.cell_list[row][col].time_counter += 1
+                elif self.cell_list[row][col].state == 4:
+                    if self.cell_list[row][col].time_counter > self.max_immune:
+                        self.cell_list[row][col].set_state(1)
+                    else:
+                        self.cell_list[row][col].time_counter += 1
 
     def movement_step(self):
         pass
