@@ -1,5 +1,6 @@
 import pyglet
 import numpy as np
+from pyglet.window import mouse
 
 class Cell(object):
     """Cell representing a human in the simulation"""
@@ -46,10 +47,16 @@ class Cell(object):
 class SimulationWindow(pyglet.window.Window):
     """The window displaying the simulation"""
 
-    def __init__(self, cell_size=20, width=640, height=640):
+    def __init__(self, toolbar_size=40, cell_size=20, width=640, height=640):
         super(SimulationWindow, self).__init__(width, height)
+
         self.width = width
-        self.height = height
+        self.height = height + toolbar_size
+        self.modified_height = height
+        self.toolbar_size = toolbar_size
+
+        self.pause_bl_x = 20
+        self.pause_bl_y = toolbar_size*(1/5)
 
         self.init_props()
         self.init_time_params()
@@ -57,6 +64,22 @@ class SimulationWindow(pyglet.window.Window):
         self.cell_size = cell_size
         self.cell_list = []
         self.init_cells()
+
+        self.running = True
+
+    def add_toolbar_to_batch(self, batch):
+        batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
+            [0, 0, self.width, 0, self.width, self.toolbar_size,
+            0, self.toolbar_size]), ('c3B', [130 for i in range(12)]))
+        batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
+            [self.pause_bl_x, self.pause_bl_y, 5*self.pause_bl_x, self.pause_bl_y, 5*self.pause_bl_x, self.pause_bl_y + (self.toolbar_size*3/5),
+            self.pause_bl_x, self.pause_bl_y + (self.toolbar_size*3/5)]), ('c3B', [200 for i in range(12)]))
+
+        label = pyglet.text.Label('Hello, world',
+                      font_name='Times New Roman',
+                      font_size=36,
+                      x=window.width//2, y=window.height//2,
+                      anchor_x='center', anchor_y='center')
 
     def init_time_params(self):
         self.max_latent = 10
@@ -75,7 +98,7 @@ class SimulationWindow(pyglet.window.Window):
 
     def init_cells(self):
         for row in range(int(self.height/self.cell_size)):
-            self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row, self.cell_size, self.expected_resistance*np.random.uniform())
+            self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row + self.toolbar_size, self.cell_size, self.expected_resistance*np.random.uniform())
                 for col in range(int(self.width/self.cell_size))])
 
         self.cell_list[np.random.randint(len(self.cell_list))][np.random.randint(len(self.cell_list[0]))].set_state(3) # For testing purposes; the one person that is infected in the population at the start
@@ -143,7 +166,6 @@ class SimulationWindow(pyglet.window.Window):
                     else:
                         if np.random.uniform() < self.prob_death:
                             self.cell_list[row][col].set_state(0)
-                            print(self.cell_list[row][col].state)
                         else:
                             self.cell_list[row][col].time_counter += 1
                 elif self.cell_list[row][col].state == 4:
@@ -162,10 +184,17 @@ class SimulationWindow(pyglet.window.Window):
             for col in range(len(self.cell_list[row])):
                 self.cell_list[row][col].add_to_batch(batch)
 
+        self.add_toolbar_to_batch(batch)
+
         batch.draw()
 
     def update(self, dt):
-        self.infection_step()
+        if self.running:
+            self.infection_step()
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if (self.pause_bl_x <= x) and (x <= 5*self.pause_bl_x) and (self.pause_bl_y <= y) and (y <= self.pause_bl_y + (self.toolbar_size*3/5)):
+            self.running = not self.running
 
     def callback(self, dt):
         print(f"{dt} seconds since last callback")
