@@ -54,6 +54,7 @@ class SimulationWindow(pyglet.window.Window):
     def __init__(self, log_path, run_time, toolbar_size=40, cell_size=20, width=640, height=640, load_path=""):
         super(SimulationWindow, self).__init__(width, height)
 
+        self.run_time = run_time
         self.config_logger = ConfigLogger(self)
         if load_path != "":
             self.config_logger.load_config(load_path)
@@ -63,7 +64,6 @@ class SimulationWindow(pyglet.window.Window):
             self.modified_height = height
 
             self.toolbar_size = toolbar_size
-            self.run_time = run_time
 
             self.pause_bl_x = 20
             self.pause_bl_y = toolbar_size*(1/5)
