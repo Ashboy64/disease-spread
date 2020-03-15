@@ -4,6 +4,7 @@ import argparse
 import os
 from pyglet.window import mouse
 from datetime import datetime
+from config import ConfigLogger
 
 class Cell(object):
     """Cell representing a human in the simulation"""
@@ -50,28 +51,35 @@ class Cell(object):
 class SimulationWindow(pyglet.window.Window):
     """The window displaying the simulation"""
 
-    def __init__(self, log_path, toolbar_size=40, cell_size=20, width=640, height=640):
+    def __init__(self, log_path, run_time, toolbar_size=40, cell_size=20, width=640, height=640, load_path=""):
         super(SimulationWindow, self).__init__(width, height)
 
-        self.width = width
-        self.height = height + toolbar_size
-        self.modified_height = height
-        self.toolbar_size = toolbar_size
+        self.config_logger = ConfigLogger(self)
+        if load_path != "":
+            self.config_logger.load_config(load_path)
+        else:
+            self.width = width
+            self.height = height + toolbar_size
+            self.modified_height = height
 
-        self.pause_bl_x = 20
-        self.pause_bl_y = toolbar_size*(1/5)
+            self.toolbar_size = toolbar_size
+            self.run_time = run_time
 
-        self.init_props()
-        self.init_time_params()
+            self.pause_bl_x = 20
+            self.pause_bl_y = toolbar_size*(1/5)
 
-        self.cell_size = cell_size
-        self.cell_list = []
-        self.init_cells()
+            self.init_props()
+            self.init_time_params()
+
+            self.cell_size = cell_size
+            self.cell_list = []
+            self.init_cells()
 
         self.running = True
         os.makedirs(log_path, exist_ok=True)
         self.f = open(os.path.join(log_path, "log.csv"), "w")
         self.f.write("susceptible,latent,infected,recovered,dead\n")
+
 
     def add_toolbar_to_batch(self, batch):
         batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
@@ -97,8 +105,48 @@ class SimulationWindow(pyglet.window.Window):
 
         self.expected_resistance = np.array(self.mf_prop).dot(self.mf_influence) * np.array(self.age_prop).dot(self.age_influence)
 
+    def get_config_no_grid(self):
+        params = {"max_latent" : self.max_latent, "max_infected" : self.max_infected, "prob_death" : self.prob_death, "max_immune" : self.max_immune}
+        props = {"mf_prop" : self.mf_prop, "mf_influence" : self.mf_influence, "age_prop" : self.age_prop, "age_influence" : self.age_influence,
+            "expected_resistance" : self.expected_resistance}
+        settings = {"cell_size" : self.cell_size, "width" : self.width, "height" : self.height, "modified_height" : self.modified_height,
+            "toolbar_size" : self.toolbar_size, "pause_bl_x" : self.pause_bl_x, "pause_bl_y" : self.pause_bl_y}
+        props = {k: str(v) for k,v in props.items()}
+        return {"params" : params, "props" : props, "settings" : settings}
+
+    def set_params_from_config(self, params):
+        self.max_latent = params["max_latent"]
+        self.max_infected = params["max_infected"]
+        self.prob_death = params["prob_death"]
+        self.max_immune = params["max_immune"]
+
+    def set_props_from_config(self, props):
+        self.mf_prop = props["mf_prop"][1:-1].split(", ")
+        self.mf_prop = [float(s) for s in self.mf_prop]
+
+        self.mf_influence = props["mf_influence"][1:-1].split(", ")
+        self.mf_influence = [float(s) for s in self.mf_influence]
+
+        self.age_prop = props["age_prop"][1:-1].split(", ")
+        self.age_prop = [float(s) for s in self.age_prop]
+
+        self.age_influence = props["age_influence"][1:-1].split(", ")
+        self.age_influence = [float(s) for s in self.age_influence]
+
+        self.expected_resistance = float(props["expected_resistance"])
+
+    def set_settings_from_config(self, settings):
+        self.cell_size = settings["cell_size"]
+        self.width = settings["width"]
+        self.height = settings["height"]
+        self.modified_height = settings["modified_height"]
+        self.toolbar_size = settings["toolbar_size"]
+        self.pause_bl_x = settings["pause_bl_x"]
+        self.pause_bl_y = settings["pause_bl_y"]
+
     def init_cells(self):
-        for row in range(int(self.height/self.cell_size)):
+        self.cell_list = []
+        for row in range(int(self.modified_height/self.cell_size)):
             self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row + self.toolbar_size, self.cell_size, self.expected_resistance*np.random.uniform())
                 for col in range(int(self.width/self.cell_size))])
 
@@ -212,7 +260,11 @@ class SimulationWindow(pyglet.window.Window):
 
     def update(self, dt):
         if self.running:
-            self.infection_step()
+            if self.run_time == 0:
+                self.close()
+            else:
+                self.infection_step()
+                self.run_time-=1
 
     def on_mouse_press(self, x, y, button, modifiers):
         if (self.pause_bl_x <= x) and (x <= 5*self.pause_bl_x) and (self.pause_bl_y <= y) and (y <= self.pause_bl_y + (self.toolbar_size*3/5)):
@@ -227,11 +279,13 @@ class SimulationWindow(pyglet.window.Window):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Simulate disease spread.')
-    parser.add_argument("--log_path", type=str, help='path to log simulation results', default=datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
+    parser.add_argument("--log_path", type=str, help='path to log simulation results', default=os.path.join("logs", datetime.now().strftime("%d_%m_%Y_%H_%M_%S")))
+    parser.add_argument("--timesteps", type=int, help='timesteps to run simulation', default=1500)
+    parser.add_argument("--init_config", type=str, help='path to init config file', default="")
 
     args = parser.parse_args()
     print("Logging to: " + args.log_path)
 
-    window = SimulationWindow(args.log_path, cell_size=20)
+    window = SimulationWindow(args.log_path, args.timesteps, load_path=args.init_config)
     pyglet.clock.schedule_interval(window.update, 1/60)
     pyglet.app.run()

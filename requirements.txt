@@ -2,3 +2,4 @@ pyglet
 numpy
 matplotlib
 pandas
+ruamel.yaml
