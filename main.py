@@ -1,6 +1,9 @@
 import pyglet
 import numpy as np
+import argparse
+import os
 from pyglet.window import mouse
+from datetime import datetime
 
 class Cell(object):
     """Cell representing a human in the simulation"""
@@ -47,7 +50,7 @@ class Cell(object):
 class SimulationWindow(pyglet.window.Window):
     """The window displaying the simulation"""
 
-    def __init__(self, toolbar_size=40, cell_size=20, width=640, height=640):
+    def __init__(self, log_path, toolbar_size=40, cell_size=20, width=640, height=640):
         super(SimulationWindow, self).__init__(width, height)
 
         self.width = width
@@ -66,20 +69,18 @@ class SimulationWindow(pyglet.window.Window):
         self.init_cells()
 
         self.running = True
+        os.makedirs(log_path, exist_ok=True)
+        self.f = open(os.path.join(log_path, "log.csv"), "w")
+        self.f.write("susceptible,latent,infected,recovered,dead\n")
 
     def add_toolbar_to_batch(self, batch):
         batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
             [0, 0, self.width, 0, self.width, self.toolbar_size,
             0, self.toolbar_size]), ('c3B', [130 for i in range(12)]))
+
         batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
             [self.pause_bl_x, self.pause_bl_y, 5*self.pause_bl_x, self.pause_bl_y, 5*self.pause_bl_x, self.pause_bl_y + (self.toolbar_size*3/5),
             self.pause_bl_x, self.pause_bl_y + (self.toolbar_size*3/5)]), ('c3B', [200 for i in range(12)]))
-
-        label = pyglet.text.Label('Hello, world',
-                      font_name='Times New Roman',
-                      font_size=36,
-                      x=window.width//2, y=window.height//2,
-                      anchor_x='center', anchor_y='center')
 
     def init_time_params(self):
         self.max_latent = 10
@@ -150,29 +151,50 @@ class SimulationWindow(pyglet.window.Window):
         return (a/4)*diag_sum + (b/4)*adj_sum
 
     def infection_step(self):
+        n_sus = 0
+        n_latent = 0
+        n_infected = 0
+        n_dead = 0
+        n_recovered = 0
+
         for row in range(len(self.cell_list)):
             for col in range(len(self.cell_list[row])):
                 # print(self.prob_infection(row, col))
                 if (self.cell_list[row][col].state == 1) and (np.random.uniform() < self.prob_infection(row, col)):
                     self.cell_list[row][col].set_state(2)
+                    n_latent+=1
+                elif (self.cell_list[row][col].state == 1):
+                    n_sus+=1
                 elif self.cell_list[row][col].state == 2:
                     if self.cell_list[row][col].time_counter > self.max_latent:
                         self.cell_list[row][col].set_state(3)
+                        n_infected+=1
                     else:
                         self.cell_list[row][col].time_counter += 1
+                        n_latent+=1
                 elif self.cell_list[row][col].state == 3:
                     if self.cell_list[row][col].time_counter > self.max_infected:
                         self.cell_list[row][col].set_state(4)
+                        n_recovered+=1
                     else:
                         if np.random.uniform() < self.prob_death:
                             self.cell_list[row][col].set_state(0)
+                            n_dead+=1
                         else:
                             self.cell_list[row][col].time_counter += 1
+                            n_infected+=1
                 elif self.cell_list[row][col].state == 4:
                     if self.cell_list[row][col].time_counter > self.max_immune:
                         self.cell_list[row][col].set_state(1)
+                        n_sus+=1
                     else:
                         self.cell_list[row][col].time_counter += 1
+                        n_recovered+=1
+                elif self.cell_list[row][col].state == 0:
+                    n_dead+=1
+
+        self.f.write(",".join([str(n_sus), str(n_latent), str(n_infected), str(n_recovered), str(n_dead)]))
+        self.f.write("\n")
 
     def movement_step(self):
         pass
@@ -199,7 +221,17 @@ class SimulationWindow(pyglet.window.Window):
     def callback(self, dt):
         print(f"{dt} seconds since last callback")
 
+    def close(self):
+        super(SimulationWindow, self).close()
+        self.f.close()
+
 if __name__ == '__main__':
-    window = SimulationWindow(cell_size=20)
-    pyglet.clock.schedule_interval(window.update, 1/30)
+    parser = argparse.ArgumentParser(description='Simulate disease spread.')
+    parser.add_argument("--log_path", type=str, help='path to log simulation results', default=datetime.now().strftime("%d_%m_%Y_%H_%M_%S"))
+
+    args = parser.parse_args()
+    print("Logging to: " + args.log_path)
+
+    window = SimulationWindow(args.log_path, cell_size=20)
+    pyglet.clock.schedule_interval(window.update, 1/60)
     pyglet.app.run()

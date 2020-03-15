@@ -1,2 +1,4 @@
 pyglet
 numpy
+matplotlib
+pandas
