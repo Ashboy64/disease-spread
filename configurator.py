@@ -13,7 +13,7 @@ class Configurator(pyglet.window.Window):
         super(Configurator, self).__init__(width, height + toolbar_size)
 
         self.save_path = save_path
-        self.config_logger = ConfigLogger(save_path)
+        self.config_logger = ConfigLogger(self)
         self.modified_height = height
 
         self.toolbar_size = toolbar_size
@@ -49,7 +49,14 @@ class Configurator(pyglet.window.Window):
             self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row + self.toolbar_size, self.cell_size, self.expected_resistance*np.random.uniform())
                 for col in range(int(self.width/self.cell_size))])
 
-        self.cell_list[np.random.randint(len(self.cell_list))][np.random.randint(len(self.cell_list[0]))].set_state(3)
+    def get_config_no_grid(self):
+        params = {"max_latent" : self.max_latent, "max_infected" : self.max_infected, "prob_death" : self.prob_death, "max_immune" : self.max_immune}
+        props = {"mf_prop" : self.mf_prop, "mf_influence" : self.mf_influence, "age_prop" : self.age_prop, "age_influence" : self.age_influence,
+            "expected_resistance" : self.expected_resistance}
+        settings = {"cell_size" : self.cell_size, "width" : self.width, "height" : self.height, "modified_height" : self.modified_height,
+            "toolbar_size" : self.toolbar_size, "pause_bl_x" : self.pause_bl_x, "pause_bl_y" : self.pause_bl_y}
+        props = {k: str(v) for k,v in props.items()}
+        return {"params" : params, "props" : props, "settings" : settings}
 
     def add_toolbar_to_batch(self, batch):
         batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
@@ -59,6 +66,27 @@ class Configurator(pyglet.window.Window):
         batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
             [self.pause_bl_x, self.pause_bl_y, 5*self.pause_bl_x, self.pause_bl_y, 5*self.pause_bl_x, self.pause_bl_y + (self.toolbar_size*3/5),
             self.pause_bl_x, self.pause_bl_y + (self.toolbar_size*3/5)]), ('c3B', [200 for i in range(12)]))
+
+        label = pyglet.text.Label('Save',
+                          font_name='Arial',
+                          font_size=36,
+                          x=self.pause_bl_x, y=self.pause_bl_y,
+                          anchor_x='left', anchor_y='bottom', batch=batch, color=(0, 0, 0, 255))
+        while label.content_width > 4*self.pause_bl_x or label.content_height > self.toolbar_size*3/5:
+            label.font_size-=1
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        # Get the cell that was clicked
+        col = x // self.cell_size
+        row = (y - self.toolbar_size) // self.cell_size
+
+        if (row >= 0) and (row < int(self.modified_height/self.cell_size)) and (col >= 0) and (col < int(self.width/self.cell_size)):
+            self.cell_list[row][col].state += 1
+            self.cell_list[row][col].state %= 5
+
+        if (self.pause_bl_x <= x) and (x <= 5*self.pause_bl_x) and (self.pause_bl_y <= y) and (y <= self.pause_bl_y + (self.toolbar_size*3/5)):
+            self.config_logger.save_curr_config(os.path.join(self.save_path, "config.yml"))
+            super(Configurator, self).close()
 
     def on_draw(self):
         self.clear()

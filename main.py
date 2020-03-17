@@ -51,13 +51,18 @@ class Cell(object):
 class SimulationWindow(pyglet.window.Window):
     """The window displaying the simulation"""
 
-    def __init__(self, log_path, run_time, toolbar_size=40, cell_size=20, width=640, height=640, load_path=""):
+    def __init__(self, log_path, run_time, render, toolbar_size=40, cell_size=20, width=640, height=640, load_path=""):
         super(SimulationWindow, self).__init__(width, height)
 
         self.run_time = run_time
+        self.render = render
+
+        if not render:
+            super(SimulationWindow, self).close()
+
         self.config_logger = ConfigLogger(self)
         if load_path != "":
-            self.config_logger.load_config(load_path)
+            self.config_logger.load_config(os.path.join(load_path, "config.yml"))
         else:
             self.width = width
             self.height = height + toolbar_size
@@ -79,7 +84,6 @@ class SimulationWindow(pyglet.window.Window):
         os.makedirs(log_path, exist_ok=True)
         self.f = open(os.path.join(log_path, "log.csv"), "w")
         self.f.write("susceptible,latent,infected,recovered,dead\n")
-
 
     def add_toolbar_to_batch(self, batch):
         batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
@@ -249,14 +253,15 @@ class SimulationWindow(pyglet.window.Window):
 
     def on_draw(self):
         self.clear()
-        batch = pyglet.graphics.Batch()
-        for row in range(len(self.cell_list)):
-            for col in range(len(self.cell_list[row])):
-                self.cell_list[row][col].add_to_batch(batch)
+        if self.render:
+            batch = pyglet.graphics.Batch()
+            for row in range(len(self.cell_list)):
+                for col in range(len(self.cell_list[row])):
+                    self.cell_list[row][col].add_to_batch(batch)
 
-        self.add_toolbar_to_batch(batch)
+            self.add_toolbar_to_batch(batch)
 
-        batch.draw()
+            batch.draw()
 
     def update(self, dt):
         if self.running:
@@ -279,13 +284,19 @@ class SimulationWindow(pyglet.window.Window):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Simulate disease spread.')
-    parser.add_argument("--log_path", type=str, help='path to log simulation results', default=os.path.join("logs", datetime.now().strftime("%d_%m_%Y_%H_%M_%S")))
+    parser.add_argument("--log_path", type=str, help='path to log simulation results', default=os.path.join("logs", datetime.now().strftime("log_%d_%m_%Y_%H_%M_%S")))
     parser.add_argument("--timesteps", type=int, help='timesteps to run simulation', default=1500)
     parser.add_argument("--init_config", type=str, help='path to init config file', default="")
+    parser.add_argument("--render", help='render simulation', default=False, action="store_true")
 
     args = parser.parse_args()
     print("Logging to: " + args.log_path)
 
-    window = SimulationWindow(args.log_path, args.timesteps, load_path=args.init_config)
-    pyglet.clock.schedule_interval(window.update, 1/60)
-    pyglet.app.run()
+    window = SimulationWindow(args.log_path, args.timesteps, args.render, load_path=args.init_config)
+    if args.render:
+        pyglet.clock.schedule_interval(window.update, 1/60)
+        pyglet.app.run()
+    else:
+        for i in range(args.timesteps):
+            window.update(0)
+        window.f.close()
