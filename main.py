@@ -95,10 +95,12 @@ class SimulationWindow(pyglet.window.Window):
             self.pause_bl_x, self.pause_bl_y + (self.toolbar_size*3/5)]), ('c3B', [200 for i in range(12)]))
 
     def init_time_params(self):
-        self.max_latent = 10
-        self.max_infected = 20
-        self.prob_death = 0.01/20
+        self.max_latent = 5
+        self.max_infected = 22
+        self.prob_death = 0.01/22
         self.max_immune = 5
+        self.max_movement_radius = 2
+        self.movement_prob = 0.05
 
     def init_props(self):
         self.mf_prop = [0.5, 0.5] # Proportion of males and females in the population
@@ -110,7 +112,8 @@ class SimulationWindow(pyglet.window.Window):
         self.expected_resistance = np.array(self.mf_prop).dot(self.mf_influence) * np.array(self.age_prop).dot(self.age_influence)
 
     def get_config_no_grid(self):
-        params = {"max_latent" : self.max_latent, "max_infected" : self.max_infected, "prob_death" : self.prob_death, "max_immune" : self.max_immune}
+        params = {"max_latent" : self.max_latent, "max_infected" : self.max_infected, "prob_death" : self.prob_death, "max_immune" : self.max_immune,
+            "max_movement_radius" : self.max_movement_radius, "movement_prob" : self.movement_prob}
         props = {"mf_prop" : self.mf_prop, "mf_influence" : self.mf_influence, "age_prop" : self.age_prop, "age_influence" : self.age_influence,
             "expected_resistance" : self.expected_resistance}
         settings = {"cell_size" : self.cell_size, "width" : self.width, "height" : self.height, "modified_height" : self.modified_height,
@@ -123,6 +126,8 @@ class SimulationWindow(pyglet.window.Window):
         self.max_infected = params["max_infected"]
         self.prob_death = params["prob_death"]
         self.max_immune = params["max_immune"]
+        self.max_movement_radius = params["max_movement_radius"]
+        self.movement_prob = params["movement_prob"]
 
     def set_props_from_config(self, props):
         self.mf_prop = props["mf_prop"][1:-1].split(", ")
@@ -154,11 +159,14 @@ class SimulationWindow(pyglet.window.Window):
             self.cell_list.append([Cell(self.cell_size*col, self.cell_size*row + self.toolbar_size, self.cell_size, self.expected_resistance*np.random.uniform())
                 for col in range(int(self.width/self.cell_size))])
 
-        self.cell_list[np.random.randint(len(self.cell_list))][np.random.randint(len(self.cell_list[0]))].set_state(3) # For testing purposes; the one person that is infected in the population at the start
+        for i in range(1):
+            r = np.random.randint(len(self.cell_list))
+            c = np.random.randint(len(self.cell_list[0]))
+            self.cell_list[r][c].set_state(3) # For testing purposes; the one person that is infected in the population at the start
 
     def prob_infection(self, row, col):
-        a = 0.5 # Infection through diagonal
-        b = 0.5 # Infection through vertical/horizontal
+        a = 1.625 # Infection through diagonal
+        b = 1.625 # Infection through vertical/horizontal
 
         diag_sum = 0
         adj_sum = 0
@@ -209,9 +217,12 @@ class SimulationWindow(pyglet.window.Window):
         n_dead = 0
         n_recovered = 0
 
+        to_move = [] # Keeps track of cells that will move in the movement step
+
         for row in range(len(self.cell_list)):
             for col in range(len(self.cell_list[row])):
-                # print(self.prob_infection(row, col))
+                if np.random.uniform() < self.movement_prob:
+                    to_move.append((row, col))
                 if (self.cell_list[row][col].state == 1) and (np.random.uniform() < self.prob_infection(row, col)):
                     self.cell_list[row][col].set_state(2)
                     n_latent+=1
@@ -248,8 +259,21 @@ class SimulationWindow(pyglet.window.Window):
         self.f.write(",".join([str(n_sus), str(n_latent), str(n_infected), str(n_recovered), str(n_dead)]))
         self.f.write("\n")
 
-    def movement_step(self):
-        pass
+        return to_move
+
+    def movement_step(self, to_move):
+        for cell_pos in to_move:
+            r, c = cell_pos
+            new_r, new_c = list(np.random.randint(low=-self.max_movement_radius, high=self.max_movement_radius, size=2))
+
+            new_r += r
+            new_c += c
+            new_r = min(max(0, new_r), len(self.cell_list)-1)
+            new_c = min(max(0, new_c), len(self.cell_list)-1)
+
+            cell = self.cell_list[r][c]
+            self.cell_list[r][c] = self.cell_list[new_r][new_c]
+            self.cell_list[new_r][new_c] = cell
 
     def on_draw(self):
         self.clear()
@@ -268,7 +292,8 @@ class SimulationWindow(pyglet.window.Window):
             if self.run_time == 0:
                 self.close()
             else:
-                self.infection_step()
+                to_move = self.infection_step()
+                self.movement_step(to_move)
                 self.run_time-=1
 
     def on_mouse_press(self, x, y, button, modifiers):
@@ -288,11 +313,14 @@ if __name__ == '__main__':
     parser.add_argument("--timesteps", type=int, help='timesteps to run simulation', default=1500)
     parser.add_argument("--init_config", type=str, help='path to init config file', default="")
     parser.add_argument("--render", help='render simulation', default=False, action="store_true")
+    parser.add_argument("--width", type=int, help='width of simulation window', default=32*20)
+    parser.add_argument("--height", type=int, help='height of simulation window', default=32*20)
 
     args = parser.parse_args()
     print("Logging to: " + args.log_path)
 
-    window = SimulationWindow(args.log_path, args.timesteps, args.render, load_path=args.init_config)
+    # 549*20 = 10980 for Italy simulation
+    window = SimulationWindow(args.log_path, args.timesteps, args.render, width=args.width, height=args.height, load_path=args.init_config)
     if args.render:
         pyglet.clock.schedule_interval(window.update, 1/60)
         pyglet.app.run()
