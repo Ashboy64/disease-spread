@@ -33,7 +33,7 @@ def accumulate_simulated(path):
 
 if __name__ == '__main__':
     df = accumulate_actual_italy("europe")
-    simulated = accumulate_simulated("../logs/log_18_03_2020_11_44_25")
+    simulated = accumulate_simulated("../logs/log_20_03_2020_15_48_44")
 
     df.index = simulated.index
     df["Simulated Deaths"] = simulated["Deaths"]

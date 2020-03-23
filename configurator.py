@@ -5,6 +5,7 @@ import numpy as np
 from main import Cell
 from datetime import datetime
 from config import ConfigLogger
+from gooey import Gooey
 
 class Configurator(pyglet.window.Window):
     """Window to create the starting point for the simulation"""
@@ -33,6 +34,8 @@ class Configurator(pyglet.window.Window):
         self.max_infected = 20
         self.prob_death = 0.01/20
         self.max_immune = 5
+        self.max_movement_radius = 2
+        self.movement_prob = 0.05
 
     def init_props(self):
         self.mf_prop = [0.5, 0.5] # Proportion of males and females in the population
@@ -50,7 +53,8 @@ class Configurator(pyglet.window.Window):
                 for col in range(int(self.width/self.cell_size))])
 
     def get_config_no_grid(self):
-        params = {"max_latent" : self.max_latent, "max_infected" : self.max_infected, "prob_death" : self.prob_death, "max_immune" : self.max_immune}
+        params = {"max_latent" : self.max_latent, "max_infected" : self.max_infected, "prob_death" : self.prob_death, "max_immune" : self.max_immune,
+            "max_movement_radius" : self.max_movement_radius, "movement_prob" : self.movement_prob}
         props = {"mf_prop" : self.mf_prop, "mf_influence" : self.mf_influence, "age_prop" : self.age_prop, "age_influence" : self.age_influence,
             "expected_resistance" : self.expected_resistance}
         settings = {"cell_size" : self.cell_size, "width" : self.width, "height" : self.height, "modified_height" : self.modified_height,
@@ -99,12 +103,19 @@ class Configurator(pyglet.window.Window):
 
         batch.draw()
 
-if __name__ == '__main__':
+@Gooey
+def main():
     parser = argparse.ArgumentParser(description='Create initial config for a simulation.')
     parser.add_argument("--save_path", type=str, help='path to save config', default=os.path.join("configs", datetime.now().strftime("config_%d_%m_%Y_%H_%M_%S")))
+    parser.add_argument("--cell_size", type=int, help='size of each cell', default=20)
+    parser.add_argument("--num_cells_height", type=int, help='number of cells per column', default=32)
+    parser.add_argument("--num_cells_width", type=int, help='number of cells per row', default=32)
 
     args = parser.parse_args()
     print("Saving to: " + args.save_path)
 
-    c = Configurator(args.save_path)
+    c = Configurator(args.save_path, cell_size=args.cell_size, width=args.num_cells_width*args.cell_size, height=args.num_cells_height*args.cell_size)
     pyglet.app.run()
+
+if __name__ == '__main__':
+    main()
