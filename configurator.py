@@ -1,6 +1,7 @@
 import pyglet
 import argparse
 import os
+import re
 import numpy as np
 from main import Cell
 from datetime import datetime
@@ -62,6 +63,26 @@ class Configurator(pyglet.window.Window):
         props = {k: str(v) for k,v in props.items()}
         return {"params" : params, "props" : props, "settings" : settings}
 
+    def set_params_from_config(self, params):
+        self.max_latent = params["max_latent"]
+        self.max_infected = params["max_infected"]
+        self.prob_death = params["prob_death"]
+        self.max_immune = params["max_immune"]
+        self.max_movement_radius = params["max_movement_radius"]
+        self.movement_prob = params["movement_prob"]
+
+    def set_props_from_config(self, props):
+        self.mf_prop = props["mf_prop"]
+        self.mf_influence = props["mf_influence"]
+        self.age_prop = props["age_prop"]
+        self.age_influence = props["age_influence"]
+        self.expected_resistance = np.array(self.mf_prop).dot(self.mf_influence) * np.array(self.age_prop).dot(self.age_influence)
+
+    def set_settings_from_config(self, settings):
+        self.cell_size = settings["cell_size"]
+        self.width = settings["width"]
+        self.height = settings["height"]
+
     def add_toolbar_to_batch(self, batch):
         batch.add(4, pyglet.gl.GL_QUADS, None, ('v2f',
             [0, 0, self.width, 0, self.width, self.toolbar_size,
@@ -103,19 +124,58 @@ class Configurator(pyglet.window.Window):
 
         batch.draw()
 
+def clean_arr(arr):
+    new_arr = []
+    for i in arr:
+        i = re.sub('[^0-9]','', i)
+        new_arr.append(float(i))
+    return new_arr
+
 @Gooey
 def main():
     parser = argparse.ArgumentParser(description='Create initial config for a simulation.')
-    parser.add_argument("--save_path", type=str, help='path to save config', default=os.path.join("configs", datetime.now().strftime("config_%d_%m_%Y_%H_%M_%S")))
+
+    # Simulation settings
+    parser.add_argument("save_path", type=str, help='path to save config', default=os.path.join("configs", datetime.now().strftime("config_%d_%m_%Y_%H_%M_%S")))
     parser.add_argument("--cell_size", type=int, help='size of each cell', default=20)
     parser.add_argument("--num_cells_height", type=int, help='number of cells per column', default=32)
     parser.add_argument("--num_cells_width", type=int, help='number of cells per row', default=32)
 
+    # Simulation parameters
+    parser.add_argument("--max_latent", type=int, help='max # timesteps for cell to be latent', default=10)
+    parser.add_argument("--max_infected", type=int, help='max # timesteps for cell to be infected', default=20)
+    parser.add_argument("--prob_death", type=float, help='probability of dying at current timestep if infected', default=0.01/20)
+    parser.add_argument("--max_immune", type=int, help='max # timesteps for cell to be immune', default=5)
+    parser.add_argument("--max_movement_radius", type=int, help='max # cells a cell can \'jump\' to simulate movement', default=2)
+    parser.add_argument("--movement_prob", type=float, help='probability a cell moves', default=0.05)
+
+    # Population parameters
+    parser.add_argument("--mf_prop", nargs='+', help='list of 2 values giving proportion of males and females in population', default=[0.5, 0.5])
+    parser.add_argument("--mf_influence", nargs='+', help='ease of infection of disease for males and females', default=[0.5, 0.5])
+    parser.add_argument("--age_prop", nargs='+', help='distribution of age groups in population', default=[1/5 for i in range(5)])
+    parser.add_argument("--age_influence", nargs='+', help='ease of infection for each age group', default=[1/5 for i in range(5)])
+
     args = parser.parse_args()
-    print("Saving to: " + args.save_path)
+
+    args.mf_prop = clean_arr(args.mf_prop)
+    args.mf_influence = clean_arr(args.mf_influence)
+    args.age_prop = clean_arr(args.age_prop)
+    args.age_influence = clean_arr(args.age_influence)
+
+    params = {"max_latent" : args.max_latent, "max_infected" : args.max_infected, "prob_death" : args.prob_death, "max_immune" : args.max_immune,
+        "max_movement_radius" : args.max_movement_radius, "movement_prob" : args.movement_prob}
+    props = {"mf_prop" : args.mf_prop, "mf_influence" : args.mf_influence, "age_prop" : args.age_prop, "age_influence" : args.age_influence}
+    settings = {"cell_size" : args.cell_size, "width" : args.num_cells_width*args.cell_size, "height" : args.num_cells_height*args.cell_size}
 
     c = Configurator(args.save_path, cell_size=args.cell_size, width=args.num_cells_width*args.cell_size, height=args.num_cells_height*args.cell_size)
+
+    c.set_params_from_config(params)
+    c.set_props_from_config(props)
+    c.set_settings_from_config(settings)
+
     pyglet.app.run()
+
+
 
 if __name__ == '__main__':
     main()
