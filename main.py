@@ -308,7 +308,6 @@ class SimulationWindow(pyglet.window.Window):
         super(SimulationWindow, self).close()
         self.f.close()
 
-@Gooey
 def main():
     parser = argparse.ArgumentParser(description='Simulate disease spread.')
     parser.add_argument("--log_path", type=str, help='path to log simulation results', default=os.path.join("logs", datetime.now().strftime("log_%d_%m_%Y_%H_%M_%S")))
@@ -332,4 +331,4 @@ def main():
         window.f.close()
 
 if __name__ == '__main__':
-    main()
+    Gooey(main)()
