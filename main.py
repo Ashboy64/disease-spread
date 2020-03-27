@@ -5,6 +5,7 @@ import os
 from pyglet.window import mouse
 from datetime import datetime
 from config import ConfigLogger
+from gooey import Gooey
 
 class Cell(object):
     """Cell representing a human in the simulation"""
@@ -307,7 +308,8 @@ class SimulationWindow(pyglet.window.Window):
         super(SimulationWindow, self).close()
         self.f.close()
 
-if __name__ == '__main__':
+@Gooey
+def main():
     parser = argparse.ArgumentParser(description='Simulate disease spread.')
     parser.add_argument("--log_path", type=str, help='path to log simulation results', default=os.path.join("logs", datetime.now().strftime("log_%d_%m_%Y_%H_%M_%S")))
     parser.add_argument("--timesteps", type=int, help='timesteps to run simulation', default=1500)
@@ -328,3 +330,6 @@ if __name__ == '__main__':
         for i in range(args.timesteps):
             window.update(0)
         window.f.close()
+
+if __name__ == '__main__':
+    main()
