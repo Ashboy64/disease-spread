@@ -110,8 +110,7 @@ class Configurator(pyglet.window.Window):
             self.cell_list[row][col].state %= 5
 
         if (self.pause_bl_x <= x) and (x <= 5*self.pause_bl_x) and (self.pause_bl_y <= y) and (y <= self.pause_bl_y + (self.toolbar_size*3/5)):
-            self.config_logger.save_curr_config(os.path.join(self.save_path, "config.yml"))
-            super(Configurator, self).close()
+            self.close()
 
     def on_draw(self):
         self.clear()
@@ -124,10 +123,14 @@ class Configurator(pyglet.window.Window):
 
         batch.draw()
 
+    def close(self):
+        self.config_logger.save_curr_config(os.path.join(self.save_path, "config.yml"))
+        super(Configurator, self).close()
+
 def clean_arr(arr):
     new_arr = []
     for i in arr:
-        i = re.sub('[^0-9]','', i)
+        i = re.sub('[^0-9.]','', i)
         new_arr.append(float(i))
     return new_arr
 
@@ -155,6 +158,9 @@ def main():
     parser.add_argument("--age_prop", nargs='+', help='distribution of age groups in population', default=[1/5 for i in range(5)])
     parser.add_argument("--age_influence", nargs='+', help='ease of infection for each age group', default=[1/5 for i in range(5)])
 
+    # Randomly sample or specify?
+    parser.add_argument("--num_sample", type=int, help='how many cells to randomly set as infected; set to 0 if want to manually specify', default=1)
+
     args = parser.parse_args()
 
     args.mf_prop = clean_arr(args.mf_prop)
@@ -173,9 +179,14 @@ def main():
     c.set_props_from_config(props)
     c.set_settings_from_config(settings)
 
-    pyglet.app.run()
-
-
+    if args.num_sample == 0:
+        pyglet.app.run()
+    else:
+        for i in range(args.num_sample):
+            row = np.random.randint(len(c.cell_list))
+            col = np.random.randint(len(c.cell_list[0]))
+            c.cell_list[row][col].set_state(3)
+        c.close()
 
 if __name__ == '__main__':
     main()
