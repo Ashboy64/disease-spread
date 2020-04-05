@@ -18,10 +18,16 @@ If you want, you can run `python configurator.py` to set and save initial parame
 
 When you are specifying the states of specific cells, you can click on cells to cycle through their possible states. When done setting the initial configuration here, hit the gray button on the bottom left of the window to save the config.
 
+![Image](assets/configurator.gif?raw=true)
+
 ### Run Simulation
 
 Run `python main.py`. You can specify a configuration to load from (input the name of the directory that the config was saved to), in which case the simulation will load all the parameters from the specified config. You can select render in order to see the simulation in real time. You can also specify a specific directory to log to.
 
+![Image](assets/main.gif?raw=true)
+
 ### Plot Results
 
-To plot results, run `python plot.py --log_path=[DIR_NAME]` where `[DIR_NAME]` specifies the directory where the log files of the simulation are located.
+To plot results, run `python plot.py --log_path=[DIR_NAME]` where `[DIR_NAME]` specifies the directory where the log files of the simulation are located. Sample plot:
+
+![Image](assets/plot.gif?raw=true)
