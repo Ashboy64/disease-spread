@@ -163,6 +163,8 @@ def main():
 
     args = parser.parse_args()
 
+    print("Saving to: " + args.save_path)
+
     args.mf_prop = clean_arr(args.mf_prop)
     args.mf_influence = clean_arr(args.mf_influence)
     args.age_prop = clean_arr(args.age_prop)

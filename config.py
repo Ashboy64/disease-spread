@@ -37,7 +37,10 @@ class ConfigLogger(object):
 
         for row in range(len(self.sim.cell_list)):
             for col in range(len(self.sim.cell_list[row])):
-                self.sim.cell_list[row][col].state = grid[row][col]
+                try:
+                    self.sim.cell_list[row][col].state = grid[row][col]
+                except:
+                    print(str(row) + ", " + str(col))
 
 if __name__ == '__main__':
     from main import SimulationWindow
