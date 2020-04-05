@@ -4,6 +4,10 @@ Repo to simulate spread of disease through a population. Based on: https://www.n
 
 Note that I am not an epidemiologist! Also, the parameters for the simulation are not yet tuned to simulate the spread of any specific disease, but I'm working on getting the simulation to match data seen on the spread of COVID-19.
 
+<p align="center">
+	<img src="assets/main_cropped.gif?raw=true">
+</p>
+
 ## Usage
 
 `configurator.py` provides functionality to configure the initial state of the simulation, `main.py` allows you to run it, and `plot.py` allows you to plot and analyze results. Before going forward, ensure that you have python 3 and the required libraries installed.
